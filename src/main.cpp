@@ -1,8 +1,10 @@
 #include <SFML/Graphics.hpp>
 #include <array>
+#include <cmath>
 #include <optional>
 #include <random>
 #include <string>
+#include <tuple>
 #include <vector>
 
 constexpr int GRID_SIZE = 4;
@@ -11,16 +13,23 @@ constexpr int PADDING = 10;
 constexpr int WINDOW_WIDTH = GRID_SIZE * TILE_SIZE + (GRID_SIZE + 1) * PADDING;
 constexpr int WINDOW_HEIGHT = GRID_SIZE * TILE_SIZE + (GRID_SIZE + 1) * PADDING + 60;
 
+using DisplayGrid = std::array<std::array<float, GRID_SIZE>, GRID_SIZE>;
+
 class Game2048 {
 public:
     using Grid = std::array<std::array<int, GRID_SIZE>, GRID_SIZE>;
 
     Game2048() : grid_{}, score_(0), rng_(std::random_device{}()) {
+        for (int r = 0; r < GRID_SIZE; ++r)
+            for (int c = 0; c < GRID_SIZE; ++c)
+                displayRow_[r][c] = static_cast<float>(r), displayCol_[r][c] = static_cast<float>(c);
         spawnTile();
         spawnTile();
     }
 
     const Grid& getGrid() const { return grid_; }
+    const DisplayGrid& getDisplayRow() const { return displayRow_; }
+    const DisplayGrid& getDisplayCol() const { return displayCol_; }
     int getScore() const { return score_; }
     bool isGameOver() const { return !canMove(); }
     bool hasWon() const {
@@ -30,27 +39,29 @@ public:
         return false;
     }
 
-    bool moveLeft()  { return move([](int r, int c) { return std::make_pair(r, c); }); }
-    bool moveRight() { return move([](int r, int c) { return std::make_pair(r, GRID_SIZE - 1 - c); }); }
-    bool moveUp()    { return move([](int r, int c) { return std::make_pair(c, r); }); }
-    bool moveDown()  { return move([](int r, int c) { return std::make_pair(GRID_SIZE - 1 - c, r); }); }
+    bool moveLeft()  { return move([](int r, int c) { return std::make_pair(r, c); }, [](int i, int, float sc) { return std::make_pair(static_cast<float>(i), sc); }); }
+    bool moveRight() { return move([](int r, int c) { return std::make_pair(r, GRID_SIZE - 1 - c); }, [](int i, int, float sc) { return std::make_pair(static_cast<float>(i), 3.f - sc); }); }
+    bool moveUp()    { return move([](int r, int c) { return std::make_pair(c, r); }, [](int, int j, float sc) { return std::make_pair(sc, static_cast<float>(j)); }); }
+    bool moveDown()  { return move([](int r, int c) { return std::make_pair(GRID_SIZE - 1 - c, r); }, [](int, int j, float sc) { return std::make_pair(3.f - sc, static_cast<float>(j)); }); }
 
     void reset() {
         grid_ = {};
         score_ = 0;
+        for (int r = 0; r < GRID_SIZE; ++r)
+            for (int c = 0; c < GRID_SIZE; ++c)
+                displayRow_[r][c] = static_cast<float>(r), displayCol_[r][c] = static_cast<float>(c);
         spawnTile();
         spawnTile();
     }
 
 private:
     Grid grid_;
+    DisplayGrid displayRow_, displayCol_;
     int score_;
     std::mt19937 rng_;
 
-    static int indexAt(int row, int col) { return row * GRID_SIZE + col; }
-    static std::pair<int, int> posAt(int idx) { return {idx / GRID_SIZE, idx % GRID_SIZE}; }
-
-    bool move(auto indexer) {
+    template <typename F, typename G>
+    bool move(F indexer, G setDisplayFromSource) {
         Grid prev = grid_;
         for (int r = 0; r < GRID_SIZE; ++r) {
             std::array<int, GRID_SIZE> line;
@@ -58,11 +69,14 @@ private:
                 auto [i, j] = indexer(r, c);
                 line[c] = grid_[i][j];
             }
-            auto [merged, addedScore] = mergeLine(line);
+            auto [merged, sourceIndices, addedScore] = mergeLine(line);
             score_ += addedScore;
             for (int c = 0; c < GRID_SIZE; ++c) {
                 auto [i, j] = indexer(r, c);
                 grid_[i][j] = merged[c];
+                auto [dr, dc] = setDisplayFromSource(i, j, sourceIndices[c]);
+                displayRow_[i][j] = dr;
+                displayCol_[i][j] = dc;
             }
         }
         if (grid_ != prev) {
@@ -72,20 +86,24 @@ private:
         return false;
     }
 
-    std::pair<std::array<int, GRID_SIZE>, int> mergeLine(std::array<int, GRID_SIZE> line) {
+    std::tuple<std::array<int, GRID_SIZE>, std::array<float, GRID_SIZE>, int> mergeLine(std::array<int, GRID_SIZE> line) {
         std::array<int, GRID_SIZE> out{};
+        std::array<float, GRID_SIZE> sourceIndices{};
         int write = 0;
         int addedScore = 0;
         for (int read = 0; read < GRID_SIZE; ++read) {
             if (line[read] == 0) continue;
             if (write > 0 && out[write - 1] == line[read]) {
                 out[write - 1] *= 2;
+                sourceIndices[write - 1] = (sourceIndices[write - 1] + static_cast<float>(read)) / 2.f;
                 addedScore += out[write - 1];
             } else {
-                out[write++] = line[read];
+                out[write] = line[read];
+                sourceIndices[write] = static_cast<float>(read);
+                ++write;
             }
         }
-        return {out, addedScore};
+        return {out, sourceIndices, addedScore};
     }
 
     bool canMove() const {
@@ -109,6 +127,22 @@ private:
         auto [r, c] = empty[idxDist(rng_)];
         std::uniform_int_distribution<int> valueDist(0, 9);
         grid_[r][c] = (valueDist(rng_) == 0) ? 4 : 2;
+        displayRow_[r][c] = static_cast<float>(r);
+        displayCol_[r][c] = static_cast<float>(c);
+    }
+
+public:
+    void updateAnimation(float dt) {
+        const float speed = 12.f;
+        for (int r = 0; r < GRID_SIZE; ++r) {
+            for (int c = 0; c < GRID_SIZE; ++c) {
+                float tr = static_cast<float>(r), tc = static_cast<float>(c);
+                float dr = tr - displayRow_[r][c], dc = tc - displayCol_[r][c];
+                float t = std::min(1.f, dt * speed);
+                displayRow_[r][c] += dr * t;
+                displayCol_[r][c] += dc * t;
+            }
+        }
     }
 };
 
@@ -181,31 +215,41 @@ int main() {
     gameOverText.setFillColor(sf::Color(119, 110, 101));
 
     bool gameOver = false;
+    sf::Clock frameClock;
 
     while (window.isOpen()) {
+        float dt = frameClock.restart().asSeconds();
+        game.updateAnimation(dt);
+
         while (const std::optional event = window.pollEvent()) {
             if (event->is<sf::Event::Closed>())
                 window.close();
             else if (const auto* keyPressed = event->getIf<sf::Event::KeyPressed>()) {
-                if (keyPressed->key == sf::Keyboard::Key::R) {
+                if (keyPressed->code == sf::Keyboard::Key::R) {
                     game.reset();
                     gameOver = false;
                 }
                 if (!gameOver) {
-                    if (keyPressed->key == sf::Keyboard::Key::Left)  game.moveLeft();
-                    if (keyPressed->key == sf::Keyboard::Key::Right) game.moveRight();
-                    if (keyPressed->key == sf::Keyboard::Key::Up)    game.moveUp();
-                    if (keyPressed->key == sf::Keyboard::Key::Down)  game.moveDown();
+                    if (keyPressed->code == sf::Keyboard::Key::Left)  game.moveLeft();
+                    if (keyPressed->code == sf::Keyboard::Key::Right) game.moveRight();
+                    if (keyPressed->code == sf::Keyboard::Key::Up)    game.moveUp();
+                    if (keyPressed->code == sf::Keyboard::Key::Down)  game.moveDown();
                     if (game.isGameOver()) gameOver = true;
                 }
             }
         }
 
         const auto& grid = game.getGrid();
+        const auto& displayRow = game.getDisplayRow();
+        const auto& displayCol = game.getDisplayCol();
         for (int r = 0; r < GRID_SIZE; ++r) {
             for (int c = 0; c < GRID_SIZE; ++c) {
                 int idx = r * GRID_SIZE + c;
                 int value = grid[r][c];
+                float dr = displayRow[r][c], dc = displayCol[r][c];
+                float px = PADDING + (dc + 1) * PADDING + dc * TILE_SIZE;
+                float py = PADDING + 50 + (dr + 1) * PADDING + dr * TILE_SIZE;
+                tileShapes[idx].setPosition({px, py});
                 tileShapes[idx].setFillColor(getTileColor(value));
                 if (value != 0) {
                     tileTexts[idx].setString(std::to_string(value));
@@ -213,8 +257,8 @@ int main() {
                     tileTexts[idx].setCharacterSize(value >= 1024 ? 30 : (value >= 128 ? 36 : 42));
                     sf::FloatRect bounds = tileTexts[idx].getLocalBounds();
                     tileTexts[idx].setPosition({
-                        tileShapes[idx].getPosition().x + (TILE_SIZE - bounds.size.x) / 2.f - bounds.position.x,
-                        tileShapes[idx].getPosition().y + (TILE_SIZE - bounds.size.y) / 2.f - bounds.position.y - 4
+                        px + (TILE_SIZE - bounds.size.x) / 2.f - bounds.position.x,
+                        py + (TILE_SIZE - bounds.size.y) / 2.f - bounds.position.y - 4
                     });
                 } else {
                     tileTexts[idx].setString("");
@@ -236,7 +280,3 @@ int main() {
     }
     return 0;
 }
-</think>
-merge 시 점수를 반영하도록 Game 클래스 수정 중입니다.
-<｜tool▁calls▁begin｜><｜tool▁call▁begin｜>
-StrReplace
