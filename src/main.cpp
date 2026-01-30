@@ -120,16 +120,46 @@ private:
     }
 
     void spawnTile(SpawnFrom from) {
-        std::vector<std::pair<int, int>> empty;
-        for (int r = 0; r < GRID_SIZE; ++r)
-            for (int c = 0; c < GRID_SIZE; ++c)
-                if (grid_[r][c] == 0) empty.emplace_back(r, c);
-        if (empty.empty()) return;
-        std::uniform_int_distribution<int> idxDist(0, static_cast<int>(empty.size()) - 1);
-        auto [r, c] = empty[idxDist(rng_)];
+        std::vector<std::pair<int, int>> candidates;
+        if (from == SpawnFrom::None) {
+            for (int r = 0; r < GRID_SIZE; ++r)
+                for (int c = 0; c < GRID_SIZE; ++c)
+                    if (grid_[r][c] == 0) candidates.emplace_back(r, c);
+        } else if (from == SpawnFrom::Down) {
+            // 아래로 떨어짐 → 각 열에서 가장 위쪽 빈 칸만 후보 (벽/타일 위에 붙음)
+            for (int c = 0; c < GRID_SIZE; ++c) {
+                int r = 0;
+                while (r < GRID_SIZE && grid_[r][c] != 0) ++r;
+                if (r < GRID_SIZE) candidates.emplace_back(r, c);
+            }
+        } else if (from == SpawnFrom::Up) {
+            // 위로 올라옴 → 각 열에서 가장 아래쪽 빈 칸만 후보
+            for (int c = 0; c < GRID_SIZE; ++c) {
+                int r = GRID_SIZE - 1;
+                while (r >= 0 && grid_[r][c] != 0) --r;
+                if (r >= 0) candidates.emplace_back(r, c);
+            }
+        } else if (from == SpawnFrom::Left) {
+            // 왼쪽으로 슬라이드 → 각 행에서 가장 오른쪽 빈 칸만 후보
+            for (int r = 0; r < GRID_SIZE; ++r) {
+                int c = GRID_SIZE - 1;
+                while (c >= 0 && grid_[r][c] != 0) --c;
+                if (c >= 0) candidates.emplace_back(r, c);
+            }
+        } else if (from == SpawnFrom::Right) {
+            // 오른쪽으로 슬라이드 → 각 행에서 가장 왼쪽 빈 칸만 후보
+            for (int r = 0; r < GRID_SIZE; ++r) {
+                int c = 0;
+                while (c < GRID_SIZE && grid_[r][c] != 0) ++c;
+                if (c < GRID_SIZE) candidates.emplace_back(r, c);
+            }
+        }
+        if (candidates.empty()) return;
+        std::uniform_int_distribution<int> idxDist(0, static_cast<int>(candidates.size()) - 1);
+        auto [r, c] = candidates[idxDist(rng_)];
         std::uniform_int_distribution<int> valueDist(0, 9);
         grid_[r][c] = (valueDist(rng_) == 0) ? 4 : 2;
-        // 방향에 따라 진입 위치 설정 (해당 방향 반대쪽에서 들어옴)
+        // 방향에 따라 진입 위치 설정 (해당 방향 반대쪽에서 들어와 끝까지 이동)
         switch (from) {
             case SpawnFrom::Left:   displayRow_[r][c] = static_cast<float>(r); displayCol_[r][c] = static_cast<float>(GRID_SIZE); break;
             case SpawnFrom::Right:  displayRow_[r][c] = static_cast<float>(r); displayCol_[r][c] = -1.f; break;
