@@ -189,21 +189,26 @@ int main() {
     gridBg.setFillColor(sf::Color(187, 173, 160));
     gridBg.setOutlineThickness(0);
 
-    std::vector<sf::RectangleShape> tileShapes;
-    std::vector<sf::Text> tileTexts;
+    // 고정 배경: 빈 칸 그리드 (항상 같은 위치)
+    std::vector<sf::RectangleShape> cellBackgrounds;
     for (int r = 0; r < GRID_SIZE; ++r) {
         for (int c = 0; c < GRID_SIZE; ++c) {
-            sf::RectangleShape tile(sf::Vector2f(TILE_SIZE, TILE_SIZE));
-            tile.setPosition({PADDING + (c + 1) * PADDING + c * TILE_SIZE + 0.f,
-                             PADDING + 50 + (r + 1) * PADDING + r * TILE_SIZE + 0.f});
-            tile.setFillColor(sf::Color(205, 193, 180));
-            tile.setOutlineThickness(0);
-            tileShapes.push_back(tile);
-
-            sf::Text text(font, "", 36);
-            text.setFillColor(sf::Color(119, 110, 101));
-            tileTexts.push_back(text);
+            sf::RectangleShape cell(sf::Vector2f(TILE_SIZE, TILE_SIZE));
+            cell.setPosition({PADDING + (c + 1) * PADDING + c * TILE_SIZE + 0.f,
+                              PADDING + 50 + (r + 1) * PADDING + r * TILE_SIZE + 0.f});
+            cell.setFillColor(sf::Color(205, 193, 180));
+            cell.setOutlineThickness(0);
+            cellBackgrounds.push_back(cell);
         }
+    }
+    // 움직이는 숫자 타일 (display 위치로 그림)
+    std::vector<sf::RectangleShape> tileShapes;
+    std::vector<sf::Text> tileTexts;
+    for (int i = 0; i < GRID_SIZE * GRID_SIZE; ++i) {
+        tileShapes.push_back(sf::RectangleShape(sf::Vector2f(TILE_SIZE, TILE_SIZE)));
+        tileShapes.back().setOutlineThickness(0);
+        tileTexts.push_back(sf::Text(font, "", 36));
+        tileTexts.back().setFillColor(sf::Color(119, 110, 101));
     }
 
     sf::Text scoreText(font, "Score: 0", 24);
@@ -246,23 +251,20 @@ int main() {
             for (int c = 0; c < GRID_SIZE; ++c) {
                 int idx = r * GRID_SIZE + c;
                 int value = grid[r][c];
+                if (value == 0) continue;
                 float dr = displayRow[r][c], dc = displayCol[r][c];
                 float px = PADDING + (dc + 1) * PADDING + dc * TILE_SIZE;
                 float py = PADDING + 50 + (dr + 1) * PADDING + dr * TILE_SIZE;
                 tileShapes[idx].setPosition({px, py});
                 tileShapes[idx].setFillColor(getTileColor(value));
-                if (value != 0) {
-                    tileTexts[idx].setString(std::to_string(value));
-                    tileTexts[idx].setFillColor(getTextColor(value));
-                    tileTexts[idx].setCharacterSize(value >= 1024 ? 30 : (value >= 128 ? 36 : 42));
-                    sf::FloatRect bounds = tileTexts[idx].getLocalBounds();
-                    tileTexts[idx].setPosition({
-                        px + (TILE_SIZE - bounds.size.x) / 2.f - bounds.position.x,
-                        py + (TILE_SIZE - bounds.size.y) / 2.f - bounds.position.y - 4
-                    });
-                } else {
-                    tileTexts[idx].setString("");
-                }
+                tileTexts[idx].setString(std::to_string(value));
+                tileTexts[idx].setFillColor(getTextColor(value));
+                tileTexts[idx].setCharacterSize(value >= 1024 ? 30 : (value >= 128 ? 36 : 42));
+                sf::FloatRect bounds = tileTexts[idx].getLocalBounds();
+                tileTexts[idx].setPosition({
+                    px + (TILE_SIZE - bounds.size.x) / 2.f - bounds.position.x,
+                    py + (TILE_SIZE - bounds.size.y) / 2.f - bounds.position.y - 4
+                });
             }
         }
         scoreText.setString("Score: " + std::to_string(game.getScore()));
@@ -270,9 +272,14 @@ int main() {
         window.clear(sf::Color(250, 248, 239));
         window.draw(bgShape);
         window.draw(gridBg);
-        for (const auto& t : tileShapes) window.draw(t);
+        for (const auto& t : cellBackgrounds) window.draw(t);
+        for (int r = 0; r < GRID_SIZE; ++r)
+            for (int c = 0; c < GRID_SIZE; ++c)
+                if (grid[r][c] != 0) {
+                    window.draw(tileShapes[r * GRID_SIZE + c]);
+                    if (fontLoaded) window.draw(tileTexts[r * GRID_SIZE + c]);
+                }
         if (fontLoaded) {
-            for (const auto& t : tileTexts) window.draw(t);
             window.draw(scoreText);
             if (gameOver) window.draw(gameOverText);
         }
