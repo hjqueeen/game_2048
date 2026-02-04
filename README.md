@@ -1,14 +1,14 @@
 # 2048 (C++ / SFML)
 
-C++와 SFML로 만든 2048 게임입니다.
+A 2048 game built with C++ and SFML.
 
-## 요구 사항
+## Requirements
 
-- **CMake** 3.16 이상
-- **C++17** 지원 컴파일러
-- **SFML 2.5** 이상 (graphics, window, system)
+- **CMake** 3.16 or higher
+- **C++17** compatible compiler
+- **SFML 3.0** or higher (Graphics, Window, System)
 
-### SFML 설치
+### Installing SFML
 
 **macOS (Homebrew):**
 ```bash
@@ -22,9 +22,9 @@ sudo apt install libsfml-dev
 ```
 
 **Windows:**  
-[SFML 공식 사이트](https://www.sfml-dev.org/download.php)에서 다운로드 후, CMake에 `SFML_DIR` 또는 `CMAKE_PREFIX_PATH`를 설정하세요.
+Download from [SFML official site](https://www.sfml-dev.org/download.php), then set `SFML_DIR` or `CMAKE_PREFIX_PATH` in CMake.
 
-## 빌드 및 실행
+## Build and run
 
 ```bash
 cd game_2048
@@ -33,14 +33,14 @@ cmake --build build
 ./build/game_2048
 ```
 
-## 조작법
+## Controls
 
-- **화살표 키**: 타일 이동 (위/아래/좌/우)
-- **R**: 게임 다시 시작 (게임 오버 후)
+- **Arrow keys**: Move tiles (up / down / left / right)
+- **R**: Restart game (after game over)
 
-## 규칙
+## Rules
 
-- 같은 숫자 타일이 부딪히면 합쳐집니다 (예: 2 + 2 → 4).
-- 매 이동 후 빈 칸 하나에 2 또는 4 타일이 생성됩니다.
-- 더 이상 움직일 수 없으면 게임 오버입니다.
-- 2048 타일을 만들면 승리입니다 (현재 버전은 게임 오버 시에만 재시작 가능).
+- Tiles with the same number merge when they touch (e.g. 2 + 2 → 4).
+- After each move, a new tile (2 or 4) appears in an empty cell.
+- Game over when no move is possible.
+- Reaching a 2048 tile is a win (current version allows restart only after game over).
