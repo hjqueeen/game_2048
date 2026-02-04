@@ -125,33 +125,36 @@ private:
             for (int r = 0; r < GRID_SIZE; ++r)
                 for (int c = 0; c < GRID_SIZE; ++c)
                     if (grid_[r][c] == 0) candidates.emplace_back(r, c);
-        } else if (from == SpawnFrom::Down) {
-            // 아래로 떨어짐 → 각 열에서 가장 위쪽 빈 칸만 후보 (벽/타일 위에 붙음)
-            for (int c = 0; c < GRID_SIZE; ++c) {
-                int r = 0;
-                while (r < GRID_SIZE && grid_[r][c] != 0) ++r;
-                if (r < GRID_SIZE) candidates.emplace_back(r, c);
-            }
-        } else if (from == SpawnFrom::Up) {
-            // 위로 올라옴 → 각 열에서 가장 아래쪽 빈 칸만 후보
-            for (int c = 0; c < GRID_SIZE; ++c) {
-                int r = GRID_SIZE - 1;
-                while (r >= 0 && grid_[r][c] != 0) --r;
-                if (r >= 0) candidates.emplace_back(r, c);
-            }
-        } else if (from == SpawnFrom::Left) {
-            // 왼쪽으로 슬라이드 → 각 행에서 가장 오른쪽 빈 칸만 후보
-            for (int r = 0; r < GRID_SIZE; ++r) {
-                int c = GRID_SIZE - 1;
-                while (c >= 0 && grid_[r][c] != 0) --c;
-                if (c >= 0) candidates.emplace_back(r, c);
-            }
-        } else if (from == SpawnFrom::Right) {
-            // 오른쪽으로 슬라이드 → 각 행에서 가장 왼쪽 빈 칸만 후보
-            for (int r = 0; r < GRID_SIZE; ++r) {
-                int c = 0;
-                while (c < GRID_SIZE && grid_[r][c] != 0) ++c;
-                if (c < GRID_SIZE) candidates.emplace_back(r, c);
+        } else {
+            // At most 4 candidates: one per column/row (the end cell in that direction)
+            if (from == SpawnFrom::Up) {
+                // Up: one cell per column — topmost empty (closest to top wall)
+                for (int c = 0; c < GRID_SIZE; ++c) {
+                    int r = 0;
+                    while (r < GRID_SIZE && grid_[r][c] != 0) ++r;
+                    if (r < GRID_SIZE) candidates.emplace_back(r, c);
+                }
+            } else if (from == SpawnFrom::Down) {
+                // Down: one cell per column — bottommost empty (closest to bottom wall)
+                for (int c = 0; c < GRID_SIZE; ++c) {
+                    int r = GRID_SIZE - 1;
+                    while (r >= 0 && grid_[r][c] != 0) --r;
+                    if (r >= 0) candidates.emplace_back(r, c);
+                }
+            } else if (from == SpawnFrom::Left) {
+                // Left: one cell per row — leftmost empty (closest to left wall)
+                for (int r = 0; r < GRID_SIZE; ++r) {
+                    int c = 0;
+                    while (c < GRID_SIZE && grid_[r][c] != 0) ++c;
+                    if (c < GRID_SIZE) candidates.emplace_back(r, c);
+                }
+            } else if (from == SpawnFrom::Right) {
+                // Right: one cell per row — rightmost empty (closest to right wall)
+                for (int r = 0; r < GRID_SIZE; ++r) {
+                    int c = GRID_SIZE - 1;
+                    while (c >= 0 && grid_[r][c] != 0) --c;
+                    if (c >= 0) candidates.emplace_back(r, c);
+                }
             }
         }
         if (candidates.empty()) return;
@@ -159,7 +162,7 @@ private:
         auto [r, c] = candidates[idxDist(rng_)];
         std::uniform_int_distribution<int> valueDist(0, 9);
         grid_[r][c] = (valueDist(rng_) == 0) ? 4 : 2;
-        // 방향에 따라 진입 위치 설정 (해당 방향 반대쪽에서 들어와 끝까지 이동)
+        // Set entry position so tile slides in from opposite side and moves to target
         switch (from) {
             case SpawnFrom::Left:   displayRow_[r][c] = static_cast<float>(r); displayCol_[r][c] = static_cast<float>(GRID_SIZE); break;
             case SpawnFrom::Right:  displayRow_[r][c] = static_cast<float>(r); displayCol_[r][c] = -1.f; break;
@@ -227,7 +230,7 @@ int main() {
     gridBg.setFillColor(sf::Color(187, 173, 160));
     gridBg.setOutlineThickness(0);
 
-    // 고정 배경: 빈 칸 그리드 (항상 같은 위치)
+    // Fixed background: empty cell grid (always same position)
     std::vector<sf::RectangleShape> cellBackgrounds;
     for (int r = 0; r < GRID_SIZE; ++r) {
         for (int c = 0; c < GRID_SIZE; ++c) {
@@ -239,7 +242,7 @@ int main() {
             cellBackgrounds.push_back(cell);
         }
     }
-    // 움직이는 숫자 타일 (display 위치로 그림)
+    // Moving number tiles (drawn at display position)
     std::vector<sf::RectangleShape> tileShapes;
     std::vector<sf::Text> tileTexts;
     for (int i = 0; i < GRID_SIZE * GRID_SIZE; ++i) {
