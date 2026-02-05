@@ -226,7 +226,8 @@ int main() {
 
     sf::RectangleShape gridBg(sf::Vector2f(GRID_SIZE * TILE_SIZE + (GRID_SIZE + 1) * PADDING,
                                            GRID_SIZE * TILE_SIZE + (GRID_SIZE + 1) * PADDING));
-    gridBg.setPosition({PADDING, PADDING + 50});
+    // 그리드 전체를 조금 아래로 내려서 상단에 스코어/버튼 공간 확보
+    gridBg.setPosition({PADDING, PADDING + 70});
     gridBg.setFillColor(sf::Color(187, 173, 160));
     gridBg.setOutlineThickness(0);
 
@@ -236,7 +237,7 @@ int main() {
         for (int c = 0; c < GRID_SIZE; ++c) {
             sf::RectangleShape cell(sf::Vector2f(TILE_SIZE, TILE_SIZE));
             cell.setPosition({PADDING + (c + 1) * PADDING + c * TILE_SIZE + 0.f,
-                              PADDING + 50 + (r + 1) * PADDING + r * TILE_SIZE + 0.f});
+                              PADDING + 70 + (r + 1) * PADDING + r * TILE_SIZE + 0.f});
             cell.setFillColor(sf::Color(205, 193, 180));
             cell.setOutlineThickness(0);
             cellBackgrounds.push_back(cell);
@@ -252,15 +253,63 @@ int main() {
         tileTexts.back().setFillColor(sf::Color(119, 110, 101));
     }
 
-    sf::Text scoreText(font, "Score: 0", 24);
-    scoreText.setPosition({PADDING, 8});
-    scoreText.setFillColor(sf::Color(119, 110, 101));
+    // ----- 상단 스코어 / 베스트 패널 -----
+    const float panelWidth  = 96.f;
+    const float panelHeight = 56.f;
+    const float panelTop    = 8.f;
+    const float panelGap    = 12.f;
+
+    sf::RectangleShape scorePanel(sf::Vector2f(panelWidth, panelHeight));
+    sf::RectangleShape bestPanel(sf::Vector2f(panelWidth, panelHeight));
+
+    scorePanel.setFillColor(sf::Color(187, 173, 160));
+    bestPanel.setFillColor(sf::Color(187, 173, 160));
+
+    scorePanel.setPosition({
+        WINDOW_WIDTH / 2.f - panelWidth - panelGap / 2.f,
+        panelTop
+    });
+    bestPanel.setPosition({
+        WINDOW_WIDTH / 2.f + panelGap / 2.f,
+        panelTop
+    });
+
+    sf::Text scoreLabel(font, "SCORE", 14);
+    sf::Text scoreValue(font, "0", 22);
+    sf::Text bestLabel(font, "BEST", 14);
+    sf::Text bestValue(font, "0", 22);
+
+    scoreLabel.setFillColor(sf::Color(238, 228, 218));
+    bestLabel.setFillColor(sf::Color(238, 228, 218));
+    scoreValue.setFillColor(sf::Color(249, 246, 242));
+    bestValue.setFillColor(sf::Color(249, 246, 242));
 
     sf::Text gameOverText(font, "Game Over! (R to restart)", 28);
     gameOverText.setPosition({WINDOW_WIDTH / 2.f - 140, WINDOW_HEIGHT / 2.f - 20});
     gameOverText.setFillColor(sf::Color(119, 110, 101));
 
+    // ----- 새 게임 버튼 -----
+    const float buttonWidth  = 120.f;
+    const float buttonHeight = 48.f;
+    sf::RectangleShape newGameButton(sf::Vector2f(buttonWidth, buttonHeight));
+    newGameButton.setFillColor(sf::Color(143, 122, 102));
+    newGameButton.setPosition({
+        WINDOW_WIDTH - buttonWidth - PADDING,
+        panelTop + (panelHeight - buttonHeight) / 2.f
+    });
+
+    sf::Text newGameText(font, "New Game", 20);
+    newGameText.setFillColor(sf::Color(249, 246, 242));
+    {
+        sf::FloatRect b = newGameText.getLocalBounds();
+        newGameText.setPosition({
+            newGameButton.getPosition().x + (buttonWidth - b.size.x) / 2.f - b.position.x,
+            newGameButton.getPosition().y + (buttonHeight - b.size.y) / 2.f - b.position.y - 2.f
+        });
+    }
+
     bool gameOver = false;
+    int bestScore = 0;
     sf::Clock frameClock;
 
     while (window.isOpen()) {
@@ -283,6 +332,16 @@ int main() {
                     if (game.isGameOver()) gameOver = true;
                 }
             }
+            else if (const auto* mousePressed = event->getIf<sf::Event::MouseButtonPressed>()) {
+                if (mousePressed->button == sf::Mouse::Button::Left) {
+                    sf::Vector2f mousePos(static_cast<float>(mousePressed->position.x),
+                                          static_cast<float>(mousePressed->position.y));
+                    if (newGameButton.getGlobalBounds().contains(mousePos)) {
+                        game.reset();
+                        gameOver = false;
+                    }
+                }
+            }
         }
 
         const auto& grid = game.getGrid();
@@ -295,7 +354,7 @@ int main() {
                 if (value == 0) continue;
                 float dr = displayRow[r][c], dc = displayCol[r][c];
                 float px = PADDING + (dc + 1) * PADDING + dc * TILE_SIZE;
-                float py = PADDING + 50 + (dr + 1) * PADDING + dr * TILE_SIZE;
+                float py = PADDING + 70 + (dr + 1) * PADDING + dr * TILE_SIZE;
                 tileShapes[idx].setPosition({px, py});
                 tileShapes[idx].setFillColor(getTileColor(value));
                 tileTexts[idx].setString(std::to_string(value));
@@ -308,10 +367,39 @@ int main() {
                 });
             }
         }
-        scoreText.setString("Score: " + std::to_string(game.getScore()));
+
+        // 스코어 / 베스트 값 갱신
+        bestScore = std::max(bestScore, game.getScore());
+        scoreValue.setString(std::to_string(game.getScore()));
+        bestValue.setString(std::to_string(bestScore));
+
+        // 각 패널 안에서 텍스트를 가운데 정렬
+        auto centerTextInPanel = [](sf::Text& label, sf::Text& value, const sf::RectangleShape& panel) {
+            sf::FloatRect lb = label.getLocalBounds();
+            sf::FloatRect vb = value.getLocalBounds();
+            float px = panel.getPosition().x;
+            float py = panel.getPosition().y;
+            float pw = panel.getSize().x;
+            float ph = panel.getSize().y;
+
+            label.setPosition({
+                px + (pw - lb.size.x) / 2.f - lb.position.x,
+                py + 6.f - lb.position.y
+            });
+            value.setPosition({
+                px + (pw - vb.size.x) / 2.f - vb.position.x,
+                py + ph / 2.f - vb.size.y / 2.f - vb.position.y + 6.f
+            });
+        };
+
+        centerTextInPanel(scoreLabel, scoreValue, scorePanel);
+        centerTextInPanel(bestLabel, bestValue, bestPanel);
 
         window.clear(sf::Color(250, 248, 239));
         window.draw(bgShape);
+        window.draw(scorePanel);
+        window.draw(bestPanel);
+        window.draw(newGameButton);
         window.draw(gridBg);
         for (const auto& t : cellBackgrounds) window.draw(t);
         for (int r = 0; r < GRID_SIZE; ++r)
@@ -321,7 +409,11 @@ int main() {
                     if (fontLoaded) window.draw(tileTexts[r * GRID_SIZE + c]);
                 }
         if (fontLoaded) {
-            window.draw(scoreText);
+            window.draw(scoreLabel);
+            window.draw(scoreValue);
+            window.draw(bestLabel);
+            window.draw(bestValue);
+            window.draw(newGameText);
             if (gameOver) window.draw(gameOverText);
         }
         window.display();
