@@ -10,8 +10,8 @@
 constexpr int GRID_SIZE = 4;
 constexpr int TILE_SIZE = 100;
 constexpr int PADDING = 10;
-constexpr int WINDOW_WIDTH = GRID_SIZE * TILE_SIZE + (GRID_SIZE + 1) * PADDING;
-constexpr int WINDOW_HEIGHT = GRID_SIZE * TILE_SIZE + (GRID_SIZE + 1) * PADDING + 60;
+constexpr int WINDOW_WIDTH = GRID_SIZE * TILE_SIZE + (GRID_SIZE + 1) * PADDING + 20;
+constexpr int WINDOW_HEIGHT = GRID_SIZE * TILE_SIZE + (GRID_SIZE + 1) * PADDING + 100; // 상하 여백 여유 있게
 
 using DisplayGrid = std::array<std::array<float, GRID_SIZE>, GRID_SIZE>;
 
@@ -209,6 +209,59 @@ sf::Color getTextColor(int value) {
     return (value <= 4) ? sf::Color(119, 110, 101) : sf::Color(249, 246, 242);
 }
 
+// 간단한 둥근 사각형 도형 구현 (SFML 기본 제공 X)
+class RoundedRectangleShape : public sf::Shape {
+public:
+    RoundedRectangleShape(const sf::Vector2f& size = {0.f, 0.f},
+                          float radius = 0.f,
+                          std::size_t cornerPointCount = 8)
+        : size_(size), radius_(radius), cornerPointCount_(cornerPointCount) {
+        update();
+    }
+
+    void setSize(const sf::Vector2f& size) { size_ = size; update(); }
+    const sf::Vector2f& getSize() const { return size_; }
+
+    void setRadius(float radius) { radius_ = radius; update(); }
+    float getRadius() const { return radius_; }
+
+    void setCornerPointCount(std::size_t count) { cornerPointCount_ = count; update(); }
+    std::size_t getCornerPointCount() const { return cornerPointCount_; }
+
+    virtual std::size_t getPointCount() const override {
+        return cornerPointCount_ * 4;
+    }
+
+    virtual sf::Vector2f getPoint(std::size_t index) const override {
+        float pi = 3.141592654f;
+        std::size_t corner = index / cornerPointCount_;
+        float angle = (static_cast<float>(index % cornerPointCount_) / static_cast<float>(cornerPointCount_ - 1)) * pi / 2.f;
+
+        sf::Vector2f center;
+        switch (corner) {
+            case 0: center = {size_.x - radius_, radius_}; break;            // top-right
+            case 1: center = {radius_, radius_}; break;                      // top-left
+            case 2: center = {radius_, size_.y - radius_}; break;            // bottom-left
+            default: center = {size_.x - radius_, size_.y - radius_}; break; // bottom-right
+        }
+
+        float x = std::cos(angle) * radius_;
+        float y = std::sin(angle) * radius_;
+
+        switch (corner) {
+            case 0: return {center.x + x, center.y - y};
+            case 1: return {center.x - y, center.y - x};
+            case 2: return {center.x - x, center.y + y};
+            default: return {center.x + y, center.y + x};
+        }
+    }
+
+private:
+    sf::Vector2f size_;
+    float radius_;
+    std::size_t cornerPointCount_;
+};
+
 int main() {
     sf::RenderWindow window(sf::VideoMode({WINDOW_WIDTH, WINDOW_HEIGHT}), "2048", sf::Style::Titlebar | sf::Style::Close);
     window.setFramerateLimit(60);
@@ -226,7 +279,7 @@ int main() {
 
     sf::RectangleShape gridBg(sf::Vector2f(GRID_SIZE * TILE_SIZE + (GRID_SIZE + 1) * PADDING,
                                            GRID_SIZE * TILE_SIZE + (GRID_SIZE + 1) * PADDING));
-    // 그리드 전체를 조금 아래로 내려서 상단에 스코어/버튼 공간 확보
+    // Move the grid a bit down to make room for top UI
     gridBg.setPosition({PADDING, PADDING + 70});
     gridBg.setFillColor(sf::Color(187, 173, 160));
     gridBg.setOutlineThickness(0);
@@ -253,24 +306,34 @@ int main() {
         tileTexts.back().setFillColor(sf::Color(119, 110, 101));
     }
 
-    // ----- 상단 스코어 / 베스트 패널 -----
+    // ----- Top score / best panels -----
     const float panelWidth  = 96.f;
     const float panelHeight = 56.f;
     const float panelTop    = 8.f;
     const float panelGap    = 12.f;
+    const float panelRadius = 8.f;
 
-    sf::RectangleShape scorePanel(sf::Vector2f(panelWidth, panelHeight));
-    sf::RectangleShape bestPanel(sf::Vector2f(panelWidth, panelHeight));
+    RoundedRectangleShape scorePanel({panelWidth, panelHeight}, panelRadius, 10);
+    RoundedRectangleShape bestPanel({panelWidth, panelHeight}, panelRadius, 10);
 
+    // SCORE: filled card style
     scorePanel.setFillColor(sf::Color(187, 173, 160));
-    bestPanel.setFillColor(sf::Color(187, 173, 160));
+    scorePanel.setOutlineThickness(0.f);
 
+    // BEST: follow background color, only border visible
+    bestPanel.setFillColor(sf::Color(250, 248, 239));
+    bestPanel.setOutlineThickness(2.f);
+    bestPanel.setOutlineColor(sf::Color(187, 173, 160));
+
+    // SCORE panel: top-left
     scorePanel.setPosition({
-        WINDOW_WIDTH / 2.f - panelWidth - panelGap / 2.f,
+        PADDING,
         panelTop
     });
+    // BEST panel: next to score
+
     bestPanel.setPosition({
-        WINDOW_WIDTH / 2.f + panelGap / 2.f,
+        PADDING + panelWidth + panelGap,
         panelTop
     });
 
@@ -279,23 +342,30 @@ int main() {
     sf::Text bestLabel(font, "BEST", 14);
     sf::Text bestValue(font, "0", 22);
 
+    // Score text colors
     scoreLabel.setFillColor(sf::Color(238, 228, 218));
-    bestLabel.setFillColor(sf::Color(238, 228, 218));
     scoreValue.setFillColor(sf::Color(249, 246, 242));
-    bestValue.setFillColor(sf::Color(249, 246, 242));
+
+    // Best text colors: darker to be more prominent
+    bestLabel.setFillColor(sf::Color(119, 110, 101));
+    bestValue.setFillColor(sf::Color(119, 110, 101));
 
     sf::Text gameOverText(font, "Game Over! (R to restart)", 28);
-    gameOverText.setPosition({WINDOW_WIDTH / 2.f - 140, WINDOW_HEIGHT / 2.f - 20});
     gameOverText.setFillColor(sf::Color(119, 110, 101));
 
-    // ----- 새 게임 버튼 -----
+    // Background behind game over text to improve readability
+    sf::RectangleShape gameOverBg;
+
+    // ----- New game button -----
     const float buttonWidth  = 120.f;
     const float buttonHeight = 48.f;
-    sf::RectangleShape newGameButton(sf::Vector2f(buttonWidth, buttonHeight));
+    const float buttonRadius = 8.f;
+    RoundedRectangleShape newGameButton({buttonWidth, buttonHeight}, buttonRadius, 10);
     newGameButton.setFillColor(sf::Color(143, 122, 102));
+    // New game button: top-right
     newGameButton.setPosition({
         WINDOW_WIDTH - buttonWidth - PADDING,
-        panelTop + (panelHeight - buttonHeight) / 2.f
+        panelTop
     });
 
     sf::Text newGameText(font, "New Game", 20);
@@ -320,7 +390,9 @@ int main() {
             if (event->is<sf::Event::Closed>())
                 window.close();
             else if (const auto* keyPressed = event->getIf<sf::Event::KeyPressed>()) {
-                if (keyPressed->code == sf::Keyboard::Key::R) {
+                // Restart game with R key (support both logical key and scancode)
+                if (keyPressed->code == sf::Keyboard::Key::R ||
+                    keyPressed->scancode == sf::Keyboard::Scancode::R) {
                     game.reset();
                     gameOver = false;
                 }
@@ -368,13 +440,13 @@ int main() {
             }
         }
 
-        // 스코어 / 베스트 값 갱신
+        // Update score / best values
         bestScore = std::max(bestScore, game.getScore());
         scoreValue.setString(std::to_string(game.getScore()));
         bestValue.setString(std::to_string(bestScore));
 
-        // 각 패널 안에서 텍스트를 가운데 정렬
-        auto centerTextInPanel = [](sf::Text& label, sf::Text& value, const sf::RectangleShape& panel) {
+        // Center texts inside panels
+        auto centerTextInPanel = [](sf::Text& label, sf::Text& value, const RoundedRectangleShape& panel) {
             sf::FloatRect lb = label.getLocalBounds();
             sf::FloatRect vb = value.getLocalBounds();
             float px = panel.getPosition().x;
@@ -414,7 +486,31 @@ int main() {
             window.draw(bestLabel);
             window.draw(bestValue);
             window.draw(newGameText);
-            if (gameOver) window.draw(gameOverText);
+
+            if (gameOver) {
+                // Compute background rectangle slightly larger than text
+                sf::FloatRect textBounds = gameOverText.getLocalBounds();
+                float paddingX = 20.f;
+                float paddingY = 12.f;
+                float bgWidth  = textBounds.size.x + paddingX * 2.f;
+                float bgHeight = textBounds.size.y + paddingY * 2.f;
+
+                gameOverBg.setSize({bgWidth, bgHeight});
+                gameOverBg.setFillColor(sf::Color(238, 228, 218, 220)); // light, slightly transparent
+
+                float bgX = WINDOW_WIDTH / 2.f - bgWidth / 2.f;
+                float bgY = WINDOW_HEIGHT / 2.f - bgHeight / 2.f;
+                gameOverBg.setPosition({bgX, bgY});
+
+                // Center text inside background
+                gameOverText.setPosition({
+                    bgX + (bgWidth - textBounds.size.x) / 2.f - textBounds.position.x,
+                    bgY + (bgHeight - textBounds.size.y) / 2.f - textBounds.position.y - 2.f
+                });
+
+                window.draw(gameOverBg);
+                window.draw(gameOverText);
+            }
         }
         window.display();
     }
