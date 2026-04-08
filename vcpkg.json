@@ -1,0 +1,8 @@
+{
+  "name": "game-2048",
+  "version": "1.0.0",
+  "description": "2048 desktop game with SFML 3",
+  "dependencies": [
+    "sfml"
+  ]
+}

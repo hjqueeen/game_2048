@@ -23,8 +23,9 @@ Small desktop game project for the 2048 assignment.
 - `src/game_view.hpp`, `src/game_view.cpp`: Rendering and UI/input handling
 - `CMakeLists.txt`: Build configuration and SFML linking
 - `README.md`: Project documentation
-- `build/game_2048` (generated after build): runnable binary on macOS/Linux
-- `assets/fonts/` (optional): custom font file if you want deterministic text rendering on all machines
+- `assets/fonts/DejaVuSans-Bold.ttf`: bundled font asset used by the game
+- `cmake/Package.cmake`: creates submission-ready `dist/` package
+- `vcpkg.json`: optional dependency manifest (`sfml`)
 
 ## Separated architecture (file responsibilities)
 
@@ -72,6 +73,28 @@ cmake --build build
 ./build/game_2048
 ```
 
+### Build with vcpkg (optional)
+
+```bash
+cmake -S . -B build \
+  -DCMAKE_TOOLCHAIN_FILE=/path/to/vcpkg/scripts/buildsystems/vcpkg.cmake \
+  -DVCPKG_TARGET_TRIPLET=x64-osx
+cmake --build build
+```
+
+## Create submission package (`dist`)
+
+```bash
+cd game_2048
+cmake -S . -B build
+cmake --build build --target package
+```
+
+Generated output:
+
+- `build/dist/game_2048` (or `game_2048.exe` on Windows)
+- `build/dist/assets/fonts/DejaVuSans-Bold.ttf`
+
 ## Controls
 
 - Arrow keys: move tiles
@@ -91,12 +114,14 @@ cmake --build build
    - Website: <https://www.sfml-dev.org/>
    - Usage: window creation, rendering, text, input events
    - License: zlib/png license
-2. **System fonts** (OS-provided fallback)
-   - Examples: Helvetica/Arial/DejaVuSans
-   - Usage: in-game text rendering when no project-local font exists
+2. **DejaVu Sans Bold font**
+   - File: `assets/fonts/DejaVuSans-Bold.ttf`
+   - Usage: in-game text rendering
+   - Upstream: DejaVu Fonts project
 
 ## Notes on portability and performance
 
 - The game runs at 60 FPS (`window.setFramerateLimit(60)`).
-- Font loading tries project-local path first (`assets/fonts/...`) and then system fallback paths.
+- Build step copies `assets/` next to the executable automatically.
+- `package` target creates `dist/` for submission.
 - Tile operations are done on fixed-size arrays (`4x4`) for low overhead and predictable behavior.
