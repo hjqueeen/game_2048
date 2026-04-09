@@ -8,6 +8,7 @@
 #include "game_view.hpp"
 
 int main() {
+    // Create a fixed-size game window for desktop play.
     sf::RenderWindow window(
         sf::VideoMode({WINDOW_WIDTH, WINDOW_HEIGHT}),
         "2048",
@@ -25,6 +26,7 @@ int main() {
         "/usr/share/fonts/truetype/dejavu/DejaVuSans-Bold.ttf"
     };
 
+    // Try project-local font first, then OS fallback fonts.
     for (const auto& path : fontCandidates) {
         if (font.openFromFile(path.string())) {
             fontLoaded = true;
@@ -44,9 +46,11 @@ int main() {
     sf::Clock frameClock;
 
     while (window.isOpen()) {
+        // Delta time keeps animation speed stable across frame rates.
         float dt = frameClock.restart().asSeconds();
         game.updateAnimation(dt);
 
+        // Poll and dispatch user/system events.
         while (const std::optional event = window.pollEvent()) {
             if (event->is<sf::Event::Closed>()) {
                 window.close();
@@ -55,6 +59,7 @@ int main() {
             }
         }
 
+        // Track session best score and render one complete frame.
         bestScore = std::max(bestScore, game.getScore());
         view.draw(window, game, gameOver, bestScore);
         window.display();

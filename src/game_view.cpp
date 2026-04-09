@@ -37,6 +37,7 @@ GameView::GameView(const sf::Font& font)
       bestValue_(font_, "0", 22),
       gameOverText_(font_, "Game Over! (R to restart)", 28),
       newGameText_(font_, "New Game", 20) {
+    // Static background layers.
     bgShape_ = sf::RectangleShape(sf::Vector2f(WINDOW_WIDTH, WINDOW_HEIGHT));
     bgShape_.setFillColor(sf::Color(250, 248, 239));
 
@@ -47,6 +48,7 @@ GameView::GameView(const sf::Font& font)
     gridBg_.setFillColor(sf::Color(187, 173, 160));
     gridBg_.setOutlineThickness(0);
 
+    // Prebuild fixed cell slots (the board holes).
     for (int r = 0; r < GRID_SIZE; ++r) {
         for (int c = 0; c < GRID_SIZE; ++c) {
             sf::RectangleShape cell(sf::Vector2f(TILE_SIZE, TILE_SIZE));
@@ -58,6 +60,7 @@ GameView::GameView(const sf::Font& font)
         }
     }
 
+    // Reusable tile objects to avoid per-frame allocations.
     for (int i = 0; i < GRID_SIZE * GRID_SIZE; ++i) {
         tileShapes_.push_back(sf::RectangleShape(sf::Vector2f(TILE_SIZE, TILE_SIZE)));
         tileShapes_.back().setOutlineThickness(0);
@@ -92,6 +95,7 @@ bool GameView::processEvent(const sf::Event& event, Game2048& game, bool& gameOv
     bool didMove = false;
 
     if (const auto* keyPressed = event.getIf<sf::Event::KeyPressed>()) {
+        // Global restart hotkey.
         if (keyPressed->code == sf::Keyboard::Key::R ||
             keyPressed->scancode == sf::Keyboard::Scancode::R) {
             game.reset();
@@ -100,6 +104,7 @@ bool GameView::processEvent(const sf::Event& event, Game2048& game, bool& gameOv
         }
 
         if (!gameOver) {
+            // Map arrow keys to game moves.
             if (keyPressed->code == sf::Keyboard::Key::Left) didMove = game.moveLeft() || didMove;
             if (keyPressed->code == sf::Keyboard::Key::Right) didMove = game.moveRight() || didMove;
             if (keyPressed->code == sf::Keyboard::Key::Up) didMove = game.moveUp() || didMove;
@@ -107,6 +112,7 @@ bool GameView::processEvent(const sf::Event& event, Game2048& game, bool& gameOv
             if (game.isGameOver()) gameOver = true;
         }
     } else if (const auto* mousePressed = event.getIf<sf::Event::MouseButtonPressed>()) {
+        // Restart via UI button click.
         if (mousePressed->button == sf::Mouse::Button::Left) {
             sf::Vector2f mousePos(static_cast<float>(mousePressed->position.x),
                                   static_cast<float>(mousePressed->position.y));
@@ -126,6 +132,7 @@ void GameView::draw(sf::RenderWindow& window, const Game2048& game, bool gameOve
     const auto& displayRow = game.getDisplayRow();
     const auto& displayCol = game.getDisplayCol();
 
+    // Update visual state of active tiles from logical board + animation coordinates.
     for (int r = 0; r < GRID_SIZE; ++r) {
         for (int c = 0; c < GRID_SIZE; ++c) {
             int idx = r * GRID_SIZE + c;
@@ -151,6 +158,7 @@ void GameView::draw(sf::RenderWindow& window, const Game2048& game, bool gameOve
     scoreValue_.setString(std::to_string(game.getScore()));
     bestValue_.setString(std::to_string(bestScore));
 
+    // Helper for centering score labels and values inside their panels.
     auto centerText = [](sf::Text& label, sf::Text& value, float px, float py, float pw, float ph) {
         sf::FloatRect lb = label.getLocalBounds();
         sf::FloatRect vb = value.getLocalBounds();
@@ -179,6 +187,7 @@ void GameView::draw(sf::RenderWindow& window, const Game2048& game, bool gameOve
     centerText(scoreLabel_, scoreValue_, scorePanel.getPosition().x, scorePanel.getPosition().y, panelWidth, panelHeight);
     centerText(bestLabel_, bestValue_, bestPanel.getPosition().x, bestPanel.getPosition().y, panelWidth, panelHeight);
 
+    // Render pipeline: background -> board -> tiles -> overlays.
     window.clear(sf::Color(250, 248, 239));
     window.draw(bgShape_);
     window.draw(scorePanel);
@@ -203,6 +212,7 @@ void GameView::draw(sf::RenderWindow& window, const Game2048& game, bool gameOve
     window.draw(newGameText_);
 
     if (gameOver) {
+        // Draw semi-transparent game-over overlay in the center.
         sf::FloatRect textBounds = gameOverText_.getLocalBounds();
         float paddingX = 20.f;
         float paddingY = 12.f;
