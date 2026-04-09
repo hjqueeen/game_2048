@@ -1,70 +1,73 @@
-# 2048 (C++ / SFML)
+# Game 2048 (C++ / SFML)
 
-Small desktop game project for the 2048 assignment.
+## Kurze Projekterklärung
 
-## Project overview
+Dieses Projekt ist eine **Desktop-Implementierung des Spiels 2048** in **C++17**. Das Spielfeld ist ein **4×4-Raster**; gleichwertige Kacheln verschmelzen bei einer Bewegung, nach jedem gültigen Zug erscheint eine neue Kachel (2 oder 4). Das Spiel endet, wenn kein Zug mehr möglich ist. Die Grafik, das Fenster und die Eingaben werden mit der Bibliothek **SFML 3** umgesetzt; Build und Abhängigkeiten werden über **CMake** verwaltet. Der Code ist in **Spiellogik** (`Game2048`), **Darstellung/Eingabe** (`GameView`) und **Hauptprogramm** (`main`) getrennt.
 
-- **Type:** Desktop game
-- **Language:** C++17
-- **Library:** SFML 3 (Graphics, Window, System)
-- **Core mechanics:** 2048 merge algorithm, random tile spawn, game-over detection, score tracking, tile animation
+---
 
-## Assignment requirement mapping
+## Drittleistungen
 
-- **C++:** Implemented in C++17
-- **Desktop application or game:** 2D desktop game (2048)
-- **At least one library:** SFML is integrated through CMake
-- **At least one algorithm/mechanic:** Tile merge + movement logic + random spawn + no-move detection
+Alle verwendeten Fremdleistungen (Bibliotheken, Schriftarten, Werkzeuge von Dritten):
 
-## Folder contents (submission)
+| Nr. | Drittleistung | Verwendung im Projekt | Quelle / Lizenz |
+|-----|----------------|------------------------|-----------------|
+| 1 | **SFML** (Simple and Fast Multimedia Library), Version 3.x, Komponenten: Graphics, Window, System | Fenster, Rendering, Text, Tastatur- und Mausereignisse | [https://www.sfml-dev.org/](https://www.sfml-dev.org/) — Lizenz: zlib/png |
+| 2 | **DejaVu Sans Bold** (TrueType-Schriftdatei) | Anzeige von Zahlen, Beschriftungen und UI-Text im Spiel | Datei: `assets/fonts/DejaVuSans-Bold.ttf` — [DejaVu Fonts](https://dejavu-fonts.github.io/) (frei nutzbar, siehe Projekt-Lizenzhinweise) |
+| 3 | **CMake** (Build-System) | Konfiguration des Builds, Auffinden von SFML, Erzeugen der ausführbaren Datei | [https://cmake.org/](https://cmake.org/) — BSD-Lizenz (Werkzeug, keine eingebundene Laufzeitbibliothek) |
+| 4 | **vcpkg** (optional) | Alternative Bereitstellung von Abhängigkeiten über `vcpkg.json` | [https://vcpkg.io/](https://vcpkg.io/) — MIT (Werkzeug) |
 
-- `src/main.cpp`: Application entry point (initialization, main loop)
-- `src/game2048.hpp`, `src/game2048.cpp`: Core game domain logic
-- `src/game_view.hpp`, `src/game_view.cpp`: Rendering and UI/input handling
-- `CMakeLists.txt`: Build configuration and SFML linking
-- `README.md`: Project documentation
-- `assets/fonts/DejaVuSans-Bold.ttf`: bundled font asset used by the game
-- `cmake/Package.cmake`: creates submission-ready `dist/` package
-- `vcpkg.json`: optional dependency manifest (`sfml`)
+*Hinweis:* Compiler, Standardbibliothek und Betriebssystem zählen nicht als „Drittleistungen“ im Sinne von Drittanbieter-Assets; sie sind Voraussetzungen zur Ausführung.
 
-## Separated architecture (file responsibilities)
+---
 
-- **`main` layer (`src/main.cpp`)**
-  - Creates the window and initializes resources (font, game instances)
-  - Runs the game loop and delegates input/rendering to dedicated modules
-- **`Game2048` domain layer (`src/game2048.*`)**
-  - Owns board state, score, merge algorithm, random tile spawn, and game-over checks
-  - Exposes move/reset/update APIs without SFML rendering concerns
-- **`GameView` presentation layer (`src/game_view.*`)**
-  - Handles all visual drawing (board, tiles, score panel, game-over overlay)
-  - Translates user input events (keyboard/mouse) into game actions
+## Abgleich mit den Aufgabenanforderungen
 
-This separation improves maintainability, testability, and readability by isolating game rules from rendering code.
+- **C++:** Umsetzung in C++17  
+- **Desktopanwendung oder Spiel:** 2D-Desktop-Spiel (2048)  
+- **Mindestens eine Bibliothek:** SFML über CMake eingebunden  
+- **Algorithmus/Mechanik:** Merge- und Bewegungslogik, Zufallsspawn, Erkennung „kein Zug möglich“  
 
-## Requirements
+---
 
-- CMake 3.16+
-- C++17-compatible compiler
-- SFML 3.0+ (Graphics, Window, System)
+## Projektstruktur (Auszug)
 
-### Install SFML
+- `src/main.cpp` — Einstieg, Fenster, Hauptschleife  
+- `src/game2048.*` — Spiellogik (Board, Score, Züge)  
+- `src/game_view.*` — Zeichnen und Eingaben  
+- `CMakeLists.txt` — Build-Konfiguration  
+- `assets/fonts/DejaVuSans-Bold.ttf` — Schriftart  
+- `cmake/Package.cmake` — optional: Abgabepaket `dist/`  
+- `vcpkg.json` — optional: Abhängigkeits-Manifest  
+
+---
+
+## Voraussetzungen
+
+- CMake 3.16+  
+- C++17-kompatibler Compiler  
+- SFML 3.0+ (Graphics, Window, System)  
+
+### SFML installieren
 
 **macOS (Homebrew)**
+
 ```bash
 brew install sfml
 ```
 
 **Ubuntu/Debian**
+
 ```bash
 sudo apt update
 sudo apt install libsfml-dev
 ```
 
-**Windows**
+**Windows:** SFML von der [offiziellen SFML-Webseite](https://www.sfml-dev.org/download.php) laden und `SFML_DIR` bzw. `CMAKE_PREFIX_PATH` für CMake setzen.
 
-Download SFML from the [official SFML website](https://www.sfml-dev.org/download.php) and set `SFML_DIR` or `CMAKE_PREFIX_PATH` for CMake.
+---
 
-## Build and run
+## Build und Start
 
 ```bash
 cd game_2048
@@ -73,16 +76,16 @@ cmake --build build
 ./build/game_2048
 ```
 
-### Build with vcpkg (optional)
+### Optional: Build mit vcpkg
 
 ```bash
 cmake -S . -B build \
-  -DCMAKE_TOOLCHAIN_FILE=/path/to/vcpkg/scripts/buildsystems/vcpkg.cmake \
+  -DCMAKE_TOOLCHAIN_FILE=/pfad/zu/vcpkg/scripts/buildsystems/vcpkg.cmake \
   -DVCPKG_TARGET_TRIPLET=x64-osx
 cmake --build build
 ```
 
-## Create submission package (`dist`)
+### Abgabepaket (`dist`) erzeugen
 
 ```bash
 cd game_2048
@@ -90,38 +93,29 @@ cmake -S . -B build
 cmake --build build --target package
 ```
 
-Generated output:
+Ausgabe u. a.: `build/dist/game_2048` (unter Windows: `game_2048.exe`) und `build/dist/assets/fonts/DejaVuSans-Bold.ttf`.
 
-- `build/dist/game_2048` (or `game_2048.exe` on Windows)
-- `build/dist/assets/fonts/DejaVuSans-Bold.ttf`
+---
 
-## Controls
+## Steuerung
 
-- Arrow keys: move tiles
-- `R`: restart game
-- New Game button (mouse): restart game
+- **Pfeiltasten:** Kacheln bewegen  
+- **R:** Neustart  
+- **New Game** (Mausklick): Neustart  
 
-## Game rules
+---
 
-- Same-value tiles merge when they collide (`2 + 2 -> 4`)
-- After each valid move, a new tile (`2` or `4`) spawns
-- Game over when no legal move exists
-- Win condition: create tile `2048`
+## Spielregeln (Kurz)
 
-## Third-party components (Drittleistungen)
+- Gleiche Werte verschmelzen (`2 + 2 → 4`).  
+- Nach gültigem Zug: neue Kachel 2 oder 4.  
+- **Game Over:** kein legaler Zug mehr.  
+- **Ziel:** Kachel **2048** erreichen.  
 
-1. **SFML 3.x**
-   - Website: <https://www.sfml-dev.org/>
-   - Usage: window creation, rendering, text, input events
-   - License: zlib/png license
-2. **DejaVu Sans Bold font**
-   - File: `assets/fonts/DejaVuSans-Bold.ttf`
-   - Usage: in-game text rendering
-   - Upstream: DejaVu Fonts project
+---
 
-## Notes on portability and performance
+## Hinweise zu Performance und Portabilität
 
-- The game runs at 60 FPS (`window.setFramerateLimit(60)`).
-- Build step copies `assets/` next to the executable automatically.
-- `package` target creates `dist/` for submission.
-- Tile operations are done on fixed-size arrays (`4x4`) for low overhead and predictable behavior.
+- Bildrate begrenzt auf 60 FPS.  
+- Beim Build wird `assets/` neben die ausführbare Datei kopiert.  
+- Spielfeld: feste Arrays 4×4.  
